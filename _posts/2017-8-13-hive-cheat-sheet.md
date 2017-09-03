@@ -1351,10 +1351,186 @@ set location '/data/Connecticut'
 
 
 ### Bucketing
- - Size of each split should be the same
- - Hash of a column value
- - Each bucket is a separate file
- - Makes sampling and joining data more efficient
+ - Split data into smaller subsets, separating records into manageable parts based on a column value, by aplling an hash in a column value
+ - Each bucket is a separate file under the table directory (if the table has no partitions) or under the table partition directory
+ - A common hash function for inteteger column values is the `modulo (%)` operator
+
+Create a `newproducts.csv` file:
+```
+1,iPhone,379.99,mobiles
+2,doll,8.99,toys
+3,Galaxy X,100,mobile
+5,Nokia Y,39.99,mobile
+6,truck,7.99,toys
+7,makeup,100,fashion
+8,earings,69,fashion
+9,chair,129,furniture
+10,table,269,furniture
+11,waterpistol,9,toys
+```
+
+
+Create table without buckets:
+```
+create table products_no_buckets
+(
+  id int,
+  name string,
+  cost double,
+  category string
+)
+row format delimited fields terminated by ',';
+
+load data local inpath 'newproducts.csv'
+into table products_no_buckets;
+
+[cloudera@quickstart ~]$ hadoop fs -ls /user/hive/warehouse/dbname.db/products_no_buckets
+Found 1 items
+-rwxrwxrwx   1 root supergroup        213 2017-08-31 14:09 /user/hive/warehouse/dbname.db/products_no_buckets/newproducts.csv
+```
+
+Create table with buckets:
+ - I had to set `hive.enforce.bucketing=true` to work as expected
+```
+set hive.enforce.bucketing = true;
+
+create table products_w_buckets
+(
+  id int,
+  name string,
+  cost double,
+  category string
+)
+CLUSTERED BY (id) INTO 4 BUCKETS;
+
+from products_no_buckets
+insert into table products_w_buckets
+select id, name, cost, category;
+
+[cloudera@quickstart ~]$ hadoop fs -ls -R  /user/hive/warehouse/dbname.db/products_w_buckets
+-rwxrwxrwx   1 root supergroup         23 2017-08-31 14:33 /user/hive/warehouse/dbname.db/products_w_buckets/000000_0
+-rwxrwxrwx   1 root supergroup         71 2017-08-31 14:33 /user/hive/warehouse/dbname.db/products_w_buckets/000001_0
+-rwxrwxrwx   1 root supergroup         60 2017-08-31 14:33 /user/hive/warehouse/dbname.db/products_w_buckets/000002_0
+-rwxrwxrwx   1 root supergroup         71 2017-08-31 14:33 /user/hive/warehouse/dbname.db/products_w_buckets/000003_0
+[cloudera@quickstart ~]$
+
+```
+
+Implementing a Partitioned, Bucketed Table
+
+```
+create table products_partitioned_buckets
+(
+  id int,
+  name string,
+  cost double
+)
+partitioned by (category string)
+clustered by (id) into 4 buckets;
+
+insert into table products_partitioned_buckets
+partition (category)
+select id, name, cost, category 
+from products_no_buckets;
+
+show partitions products_partitioned_buckets;
+OK
++---------------------+--+
+|      partition      |
++---------------------+--+
+| category=fashion    |
+| category=furniture  |
+| category=mobile     |
+| category=mobiles    |
+| category=toys       |
++---------------------+--+
+
+
+[cloudera@quickstart ~]$ hadoop fs -ls -R  /user/hive/warehouse/dbname.db/products_partitioned_buckets
+drwxrwxrwx   - root supergroup          0 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=fashion
+-rwxrwxrwx   1 root supergroup         15 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=fashion/000000_0
+-rwxrwxrwx   1 root supergroup          0 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=fashion/000001_0
+-rwxrwxrwx   1 root supergroup          0 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=fashion/000002_0
+-rwxrwxrwx   1 root supergroup         15 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=fashion/000003_0
+drwxrwxrwx   - root supergroup          0 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=furniture
+-rwxrwxrwx   1 root supergroup          0 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=furniture/000000_0
+-rwxrwxrwx   1 root supergroup         14 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=furniture/000001_0
+-rwxrwxrwx   1 root supergroup         15 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=furniture/000002_0
+-rwxrwxrwx   1 root supergroup          0 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=furniture/000003_0
+drwxrwxrwx   - root supergroup          0 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=mobile
+-rwxrwxrwx   1 root supergroup          0 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=mobile/000000_0
+-rwxrwxrwx   1 root supergroup         16 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=mobile/000001_0
+-rwxrwxrwx   1 root supergroup          0 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=mobile/000002_0
+-rwxrwxrwx   1 root supergroup         17 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=mobile/000003_0
+drwxrwxrwx   - root supergroup          0 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=mobiles
+-rwxrwxrwx   1 root supergroup          0 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=mobiles/000000_0
+-rwxrwxrwx   1 root supergroup         16 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=mobiles/000001_0
+-rwxrwxrwx   1 root supergroup          0 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=mobiles/000002_0
+-rwxrwxrwx   1 root supergroup          0 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=mobiles/000003_0
+drwxrwxrwx   - root supergroup          0 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=toys
+-rwxrwxrwx   1 root supergroup          0 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=toys/000000_0
+-rwxrwxrwx   1 root supergroup          0 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=toys/000001_0
+-rwxrwxrwx   1 root supergroup         25 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=toys/000002_0
+-rwxrwxrwx   1 root supergroup         19 2017-08-31 15:58 /user/hive/warehouse/dbname.db/products_partitioned_buckets/category=toys/000003_0
+[cloudera@quickstart ~]$
+
+
+```
+
+Bucketed table with sorted records
+sorted on column name just by example.
+
+```
+use dbname;
+set hive.exec.dynamic.partition=true;
+set hive.exec.dynamic.partition.mode=nonstrict;
+
+
+create table products_partitioned_buckets_sorted
+(
+  id int,
+  name string,
+  cost double
+)
+partitioned by (category string)
+clustered by (id)
+sorted by (name) 
+into 4 buckets;
+
+insert into products_partitioned_buckets_sorted
+partition (category)
+select id, name, cost, category
+from products_no_buckets;
+
+
+```
+
+---
+
+## Sampling
+Get a small, representative subset of data from a table (sample).
+
+**Block Sampling**: scan the entire dataset - work with bucketed and non-bucketed tables
+```
+select * from customers tablesample(10 percent);
+```
+
+**Row Count Sampling**: scan the entire dataset - work with bucketed and non-bucketed tables
+```
+select * from customers tablesample(3 rows);
+```
+
+**Bucket Sampling**: sample only a few buckets in a table - work just with bucketed tables
+```
+select * from customers tablesample(bucket 1 out of 4 on id);
+```
+Assuming you have `4` buckets:
+ - select * from customers tablesample(`bucket 1 out of 4 on id`) or select * from customers tablesample(`bucket 2 out of 4 on id`) - return data form the bucket
+ - select * from customers tablesample(`bucket 1 out of 2 on id`) - will merge 4 buckets into 2 and get one of the merged ones
+ - select * from customers tablesample(`bucket 4 out of 8 on id`) - will split 4 buckets into 8 and and get one of the splitted ones
+ - select * from customers tablesample(`bucket 1 out of 2 on name`) - will bucket on `name` column on the fly
+
+
 
 ----
 
@@ -1374,6 +1550,7 @@ A suite of functions which are syntactic sugar for complex queries, reducing the
 
 
 "Partitioning and Bucketing", "Partitioning", "Bucketing"
+"Sampling",
 "Join Optimizations ",
 "Window Functions"
 
