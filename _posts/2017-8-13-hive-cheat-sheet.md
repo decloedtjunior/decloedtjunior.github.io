@@ -28,6 +28,12 @@ categories: hive cheatsheet csa175 csa
       - [Set Operations in Hive](#set-operations-in-hive)
       - [Subqueries in the WHERE Clause](#subqueries-in-the-where-clause)
     - [Views](#views)
+    - [Partitioning and Bucketing](#partitioning-and-bucketing)
+      - [Partitioning](#partitioning)
+      - [Bucketing](#bucketing)
+      - [Sampling](#sampling)
+    - [Join Optimizations ](#join-optimizations-)
+    - [Window Functions](#window-functions)
 
 Built on top of [Apache Hadoop™](http://hadoop.apache.org/), Hive provides the following features:
  - Tools to enable easy access to data via SQL, thus enabling data warehousing tasks such as extract/transform/load (ETL), reporting, and data analysis.
@@ -1536,21 +1542,116 @@ Assuming you have `4` buckets:
 
 ## Join Optimizations 
 Join operations are MapReduce jobs under the hood, by reducing the amount of data held in memory usually by structuring joins as a map-only operation, or by storing small tables in memory...
+ - for faster queries, specify the largest table at the very end of the joins operations... in the example below, Hive will bring the first two tables into memory and stream data from disk for the third column (Trades)
+
+```
+select Names.Symbol, Trades.High, Revenues.Reveue
+from Names 
+join Revenues on (Names.Symbol = Revenues.Symbol)
+join Trades on (Names.Symbol = Trades.Symbol)
+```
+
+**StreamTable Keywork**: specify the column to be streamed from disk:
+
+select `/*+ streamtable(Trades) */` Names.Symbol, Trades.High, Revenues.Reveue
+from Names 
+join Trades on (Names.Symbol = Trades.Symbol)
+join Revenues on (Names.Symbol = Revenues.Symbol)
+
 
 
 ----
 
 ## Window Functions
 
-
-----
-
 A suite of functions which are syntactic sugar for complex queries, reducing the need for intermediate tables to store temporary data
 
+```
+from groceries
+select id, revenue, day,
+sum(revenue) over (
+order by day
+rows between unbounded preceding and current row
+) as running_total;
+
+# or
+
+from groceries
+select id, revenue, day,
+sum(revenue) over (
+order by day
+) as running_total;
+
+```
+
+Window Functions with Partitions - Will reset the value for each day
+```
+from groceries
+select id, revenue, day,
+sum(revenue) over (
+partition by day
+order by id
+rows between unbounded preceding and current row
+) as running_total;
+```
+Window Functions with Partitions - Will present the total for each partition
+```
+from groceries
+select id, revenue, day,
+sum(revenue) over (
+partition by day
+order by id
+rows between unbounded preceding and unbounded following
+) as running_total;
+```
+
+**Calculating Moving Averages**
+3 previous + current row = moving average for the **last 4 rows**
+```
+from groceries
+select id, revenue, day,
+avg(revenue) over (
+order by id
+rows between 3 preceding and current row
+) as running_total;
+```
+
+**Calculating Percentage Contributions**
+
+```
+from groceries
+select id, revenue, day,
+revenue * 100 / sum(revenue) over (partition by day)
+as percent_contrib_per_day;
+```
+
+The Row Number and Rank Window Functions
+```
+from groceries
+select id, revenue, day,
+row_number() over (partition by day order by id)
+as row_number;
 
 
-"Partitioning and Bucketing", "Partitioning", "Bucketing"
-"Sampling",
-"Join Optimizations ",
-"Window Functions"
+from groceries
+select id, revenue, day,
+rank() over (partition by day order by id)
+as rank;
+```
+
+Calculating Quantiles
+```
+from groceries
+select id, product, day, revenue
+ntile(4) over (order by revenue)
+as percentile;
+
+from groceries
+select id, product, day, revenue
+ntile(4) over (partition by day order by revenue)
+as percentile;
+
+```
+
+
 
