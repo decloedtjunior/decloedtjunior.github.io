@@ -64,7 +64,7 @@ conda env remove -n env_name
 
 ## Install packages
 ```
-conda install numpy pandas matploylib
+conda install numpy scipy pandas matplotlib
 conda install jupyter notebook
 ```
 
