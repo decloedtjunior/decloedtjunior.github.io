@@ -8,27 +8,33 @@ permalink: /cassandra/
 
 Apache Cassandra is an open source, distributed, decentralized, elastically scalable, highly available, fault-tolerant, tuneably consistent, row-oriented database that bases its _distribution design_ on Amazon’s Dynamo and its _data model_ on Google’s Bigtable.  Created at Facebook, it is now used at some of the most popular sites on the Web.
 
-> scaling data stores means making certain trade-offs between data consistency, node availability, and partition tolerance.
+> scaling data stores means making certain trade-offs between **data consistency, node availability, and partition tolerance.**
 
-When considering consistency, availability, and partition tolerance, we can achieve only two of these goals in a given distributed system, a trade-off known as the CAP theorem
+When considering _consistency, availability, and partition tolerance_, we can achieve only two of these goals in a given distributed system, a trade-off known as the **CAP theorem**.
 
-In Cassandra, consistency is not an all-or-nothing proposition. We might more accurately term it “tuneable consistency” because the client can control the number of replicas to block on for all updates. This is done by setting the consistency level against the replication factor. The replication factor lets you decide how much you want to pay in performance to gain more consistency. The consistency level is a setting that clients must specify on every operation and that allows you to decide how many replicas in the cluster must acknowledge a write operation or respond to a read operation in order to be considered successful. 
+In Cassandra, consistency is not an all-or-nothing proposition. We might more accurately term it _**"tuneable consistency"**_ because the client can control the number of replicas to block on for all updates. This is done by setting the consistency level against the **replication factor**. 
+>The replication factor lets you decide how much you want to pay in performance to gain more consistency. 
+
+The consistency level is a setting that clients must specify on every operation and that allows you to decide how many replicas in the cluster must acknowledge a **write operation** _or_ respond to a **read operation** in order to be considered successful. 
 
 **Row-Oriented**
+----
 
-Cassandra’s data model can be described as a partitioned row store, in which data is stored in sparse multidimensional hashtables. “Sparse” means that for any given row you can have one or more columns, but each row doesn’t need to have all the same columns as other rows like it (as in a relational model). “Partitioned” means that each row has a unique key which makes its data accessible, and the keys are used to distribute the rows across multiple data stores. 
+Cassandra’s data model can be described as a partitioned row store, in which data is stored in sparse multidimensional hashtables. 
+ - **“Sparse”** means that for any given row you can have one or more columns, but each row doesn’t need to have all the same columns as other rows like it (as in a relational model). 
+ - **“Partitioned”** means that each row has a unique key which makes its data accessible, and the keys are used to distribute the rows across multiple data stores. 
 
-In the relational storage model, all of the columns for a table are defined beforehand and space is allocated for each column whether it is populated or not. In contrast, Cassandra stores data in a multidimensional, sorted hash table. As data is stored in each column, it is stored as a separate entry in the hash table. Column values are stored according to a consistent sort order, omitting columns that are not populated, which enables more efficient storage and query processing.
-
-
-Is Cassandra “Schema-Free”?
-> In its early versions. Cassandra was faithful to the original Bigtable whitepaper in supporting a “schema-free” data model in which new columns can be defined dynamically.  Schema-free databases such as Bigtable and MongoDB have the advantage of being very extensible and highly performant in accessing large amounts of data. The major drawback of schema-free databases is the difficulty in determining the meaning and format of data, which limits the ability to perform complex queries. These disadvantages proved a barrier to adoption for many, especially as startup projects which benefitted from the initial flexibility matured into more complex enterprises involving multiple developers and administrators.The solution for those users was the introduction of the Cassandra Query Language (CQL), which provides a way to define schema via a syntax similar to the Structured Query Language (SQL) familiar to those coming from a relational background. Initially, CQL was provided as another interface to Cassandra alongside the schema-free interface based on the Apache Thrift project. During this transitional phase, the term “Schema-optional” was used to describe that data models could be defined by schema using CQL, but could also be dynamically extended to add new columns via the Thrift API. During this period, the underlying data storage continued to be based on the Bigtable model.Starting with the 3.0 release, the Thrift-based API that supported dynamic column creation has been deprecated, and Cassandra’s underlying storage has been re-implemented to more closely align with CQL. Cassandra does not entirely limit the ability to dynamically extend the schema on the fly, but the way it works is significantly different. CQL collections such as lists, sets, and especially maps provide the ability to add content in a less structured form that can be leveraged to extend an existing schema. CQL also provides the ability to change the type of columns in certain instances, and facilities to support the storage of JSON-formatted text.So perhaps the best way to describe Cassandra’s current posture is that it supports “flexible schema.”
+In the _relational storage_ model, all of the columns for a table are defined beforehand and space is allocated for each column whether it is populated or not. In contrast, **Cassandra stores data in a multidimensional, sorted hash table.** As data is stored in each column, it is stored as a separate entry in the hash table. Column values are stored according to a consistent sort order, omitting columns that are not populated, which enables more efficient storage and query processing.
 
 
-Cassandra uses a special primary key called a composite key (or compound key) to represent wide rows, also called partitions. The composite key consists of a partition key, plus an  optional set of clustering columns.  The partition key is used to determine the nodes on which rows are stored and can itself consist of multiple columns. The clustering columns are used to control how data is sorted for storage within a partition.  Cassandra also supports an additional construct called a static column, which is for storing data that is not part of the primary key but is shared by every row in a partition.
+**Is Cassandra “Schema-Free”?**
+----
+> In its early versions. Cassandra was faithful to the original Bigtable whitepaper in supporting a “schema-free” data model in which new columns can be defined dynamically.  Schema-free databases such as Bigtable and MongoDB have the advantage of being very extensible and highly performant in accessing large amounts of data. The major drawback of schema-free databases is the difficulty in determining the meaning and format of data, which limits the ability to perform complex queries. These disadvantages proved a barrier to adoption for many, especially as startup projects which benefitted from the initial flexibility matured into more complex enterprises involving multiple developers and administrators.The solution for those users was the introduction of the Cassandra Query Language (CQL), which provides a way to define schema via a syntax similar to the Structured Query Language (SQL) familiar to those coming from a relational background. Initially, CQL was provided as another interface to Cassandra alongside the schema-free interface based on the Apache Thrift project. During this transitional phase, the term “Schema-optional” was used to describe that data models could be defined by schema using CQL, but could also be dynamically extended to add new columns via the Thrift API. During this period, the underlying data storage continued to be based on the Bigtable model. 
 
-![_config.yml]({{ site.baseurl }}/images/cassandra_wide_row.png)
+Starting with the 3.0 release, the Thrift-based API that supported dynamic column creation has been deprecated, and Cassandra’s underlying storage has been re-implemented to more closely align with CQL. Cassandra does not entirely limit the ability to dynamically extend the schema on the fly, but the way it works is significantly different. CQL collections such as **_lists, sets, and especially maps_** provide the ability to add content in a less structured form that can be leveraged to extend an existing schema. CQL also provides the ability to change the type of columns in certain instances, and facilities to support the storage of JSON-formatted text. So perhaps the best way to describe Cassandra’s current posture is that it supports “flexible schema.”
 
+
+Cassandra uses a special primary key called a composite key (or compound key) to represent wide rows, also called partitions. **The composite key consists of a partition key, plus an  optional set of clustering columns.**  The partition key is used to determine the nodes on which rows are stored and can itself consist of multiple columns. The clustering columns are used to control how data is sorted for storage within a partition.  Cassandra also supports an additional construct called a static column, which is for storing data that is not part of the primary key but is shared by every row in a partition.
 
 Putting this all together, we have the basic Cassandra data structures:	
 - The _column_, which is a name/value pair
@@ -36,6 +42,8 @@ Putting this all together, we have the basic Cassandra data structures:
 - The _table_, which is a container for rows
 - The _keyspace_, which is a container for tables	
 - The _cluster_, which is a container for keyspaces that spans one or more nodes
+
+![_config.yml]({{ site.baseurl }}/images/cassandra_wide_row.png)
 
 
 
