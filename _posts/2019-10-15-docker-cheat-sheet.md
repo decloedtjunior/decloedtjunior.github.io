@@ -6,9 +6,8 @@ title: Docker Cheat Sheet
 categories: docker cheatsheet 
 ---
 
-Docker helps developers build and ship higher-quality applications, faster." -- [What is Docker](https://www.docker.com/what-docker#copy1). 
+Docker helps developers build and ship higher-quality applications, faster." -- [What is Docker](https://www.docker.com/what-docker#copy1). Here we have a basic docker cheatsheet… enjoy!
 
-**Want to improve this cheat sheet?  See the [Contributing](#contributing) section!**
 
 ## Table of Contents
 
